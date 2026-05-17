@@ -1,3 +1,5 @@
+import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -13,10 +15,22 @@ from backend.storage.db import init_db
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    for key in ("ANTHROPIC_API_KEY", "TAVILY_API_KEY"):
+        if not os.getenv(key):
+            logger.error("Missing required environment variable: %s", key)
+            raise RuntimeError(f"Missing required environment variable: {key}")
+        logger.info("Environment check OK: %s is set", key)
     await init_db()
+    logger.info("Database initialized — app ready")
     yield
 
 

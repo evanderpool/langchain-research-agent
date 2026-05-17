@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from langchain_anthropic import ChatAnthropic
@@ -6,6 +7,7 @@ from pydantic import BaseModel
 
 from .state import ResearchState, SubQuestionState
 
+logger = logging.getLogger(__name__)
 _llm = ChatAnthropic(model="claude-haiku-4-5-20251001", max_tokens=2048)
 
 
@@ -15,6 +17,7 @@ class SubQuestions(BaseModel):
 
 def planner_node(state: ResearchState) -> dict:
     depth = state.get("depth", 3)
+    logger.info("Planner: calling LLM (depth=%d, question=%r)", depth, state["question"][:80])
     structured_llm = _llm.with_structured_output(SubQuestions)
     result = structured_llm.invoke([
         SystemMessage(content=(
@@ -31,6 +34,7 @@ def planner_node(state: ResearchState) -> dict:
 def researcher_node(state: SubQuestionState) -> dict:
     from .tools import web_search
 
+    logger.info("Researcher: searching %r", state["sub_question"][:80])
     results = web_search(state["sub_question"])
     return {
         "search_results": [{
@@ -42,6 +46,7 @@ def researcher_node(state: SubQuestionState) -> dict:
 
 
 def synthesizer_node(state: ResearchState) -> dict:
+    logger.info("Synthesizer: calling LLM with %d search result sets", len(state["search_results"]))
     findings = []
     sources = []
     for item in state["search_results"]:

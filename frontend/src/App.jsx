@@ -26,6 +26,7 @@ export default function App() {
   const [agentSteps, setAgentSteps] = useState([])
   const [report, setReport] = useState(null)
   const [activeId, setActiveId] = useState(null)
+  const [errorMessage, setErrorMessage] = useState(null)
   const { startResearch } = useSSE()
 
   const callbacks = useCallback(() => ({
@@ -83,6 +84,7 @@ export default function App() {
 
     error: ({ message }) => {
       setStatus('error')
+      setErrorMessage(message)
       console.error('Research error:', message)
     },
   }), [])
@@ -90,6 +92,7 @@ export default function App() {
   async function handleSubmit() {
     if (!question.trim() || status === 'running') return
     setStatus('running')
+    setErrorMessage(null)
     setReport({ synthesis: null, sources: [], report_id: null, question })
     setAgentSteps(buildInitialSteps(depth))
     setActiveId(null)
@@ -102,6 +105,7 @@ export default function App() {
     setAgentSteps([])
     setStatus('idle')
     setActiveId(null)
+    setErrorMessage(null)
   }
 
   async function handleSelectHistory(id) {
@@ -166,7 +170,12 @@ export default function App() {
 
           {status === 'error' && (
             <div className="card p-4 border-red-900/50 bg-red-950/20">
-              <p className="text-sm text-red-400">Something went wrong. Check that your API keys are set in .env and try again.</p>
+              <p className="text-sm font-semibold text-red-400 mb-1">Research failed</p>
+              {errorMessage ? (
+                <p className="text-xs text-red-300 font-mono break-all">{errorMessage}</p>
+              ) : (
+                <p className="text-sm text-red-400">Check that your API keys are set and try again.</p>
+              )}
             </div>
           )}
 

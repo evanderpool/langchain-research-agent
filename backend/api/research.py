@@ -1,4 +1,5 @@
 import json
+import logging
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -8,6 +9,7 @@ from backend.models.schemas import ResearchRequest
 from backend.storage.db import save_report
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/research")
@@ -27,12 +29,14 @@ async def run_research(request: ResearchRequest):
         synthesis = ""
         researcher_results = {}
 
+        logger.info("Research request: question=%r depth=%d", request.question[:80], request.depth)
         try:
             async for chunk in graph.astream(initial_state, stream_mode="updates"):
                 for node_name, update in chunk.items():
 
                     if node_name == "planner":
                         sub_questions = update.get("sub_questions", [])
+                        logger.info("Planner done: %d sub-questions", len(sub_questions))
                         yield f"data: {json.dumps({'type': 'planner_done', 'sub_questions': sub_questions})}\n\n"
 
                     elif node_name == "researcher":
@@ -42,10 +46,12 @@ async def run_research(request: ResearchRequest):
                             sq = item["sub_question"]
                             researcher_results[sq] = item["results"]
                             all_sources.extend(item["results"])
+                            logger.info("Researcher done: %r (%d results)", sq[:60], len(item["results"]))
                             yield f"data: {json.dumps({'type': 'researcher_done', 'sub_question': sq, 'results': item['results']})}\n\n"
 
                     elif node_name == "synthesizer":
                         synthesis = update.get("synthesis", "")
+                        logger.info("Synthesis done: %d chars", len(synthesis))
                         yield f"data: {json.dumps({'type': 'synthesis_done', 'synthesis': synthesis})}\n\n"
 
             # Deduplicate sources by URL
@@ -63,10 +69,12 @@ async def run_research(request: ResearchRequest):
                 sources=unique_sources,
                 depth=request.depth,
             )
+            logger.info("Report saved: id=%s", report_id)
 
             yield f"data: {json.dumps({'type': 'saved', 'report_id': report_id, 'sources': unique_sources})}\n\n"
 
         except Exception as e:
+            logger.error("Research pipeline error: %s", str(e), exc_info=True)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(
