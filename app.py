@@ -29,10 +29,8 @@ with st.sidebar:
     """)
 
     st.divider()
-    anthropic_key = st.text_input("Anthropic API Key", type="password",
-                                   value=os.getenv("ANTHROPIC_API_KEY", ""))
-    tavily_key = st.text_input("Tavily API Key", type="password",
-                                value=os.getenv("TAVILY_API_KEY", ""))
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
+    tavily_key = os.getenv("TAVILY_API_KEY", "")
 
 question = st.text_input(
     "Research question",
@@ -87,8 +85,8 @@ if run and question:
 
             elif node_name == "researcher":
                 if sub_questions_shown and "researcher_statuses" in dir():
-                    for rs in researcher_statuses:
-                        rs.update(label=rs.label.replace("searching...", "complete"), state="complete")
+                    for i, rs in enumerate(researcher_statuses, 1):
+                        rs.update(label=f"Researcher {i} — complete", state="complete")
 
             elif node_name == "synthesizer":
                 synth_status.status("Synthesizer — complete", state="complete")
