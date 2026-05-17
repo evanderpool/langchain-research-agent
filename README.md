@@ -1,28 +1,33 @@
-# Multi-Agent Research Assistant
+# Research Intelligence Agent
 
-A **LangGraph + LangChain** multi-agent system that researches any topic in parallel and synthesizes findings into a structured report — built as a portfolio project for [Artificial Management](https://github.com/evanderpool/artificial-management).
+A production-grade multi-agent AI research assistant built with **LangGraph**, **FastAPI**, and **React**. Ask a question and watch parallel AI agents plan, research, and synthesize a structured report in real time.
+
+**Part of the [Artificial Management](https://github.com/evanderpool/artificial-management) AI Operating System.**
+
+---
 
 ## Architecture
 
 ```
-User Question
-      │
-      ▼
-┌─────────────┐
-│   Planner   │  Claude breaks the question into 3–4 sub-questions
-└──────┬──────┘
-       │  (LangGraph Send — parallel fan-out)
-  ┌────┴────┐
-  ▼         ▼         ▼         ▼
-┌────┐   ┌────┐   ┌────┐   ┌────┐
-│ R1 │   │ R2 │   │ R3 │   │ R4 │   Researchers (parallel Tavily web search)
-└────┘   └────┘   └────┘   └────┘
-  └────┬────┘
-       ▼
-┌─────────────┐
-│ Synthesizer │  Claude combines all findings into a structured report
-└─────────────┘
+User Query
+    │
+    ▼
+┌─────────┐     ┌─────────────┐     ┌─────────────┐
+│ Planner │────▶│ Researcher 1│────▶│             │
+│ (Claude)│     ├─────────────┤     │ Synthesizer │
+│         │────▶│ Researcher 2│────▶│  (Claude)   │
+│         │     ├─────────────┤     │             │
+│         │────▶│ Researcher N│────▶│             │
+└─────────┘     └─────────────┘     └─────────────┘
+     │               │ Tavily              │
+     │             Web Search         Markdown
+     └─────────── LangGraph SSE ──────────┘
+                    Stream
 ```
+
+**Stack:** LangGraph · LangChain · Claude Haiku · Tavily Search · FastAPI · SQLite · React · Vite · Tailwind CSS
+
+---
 
 ## Key Concepts Demonstrated
 
@@ -32,69 +37,143 @@ User Question
 | **Parallel agent execution** | `Send` API fans out to N researcher nodes simultaneously |
 | **Conditional edges** | `add_conditional_edges` routes planner → N researchers |
 | **Structured output** | `.with_structured_output(Pydantic)` for reliable sub-question extraction |
-| **LCEL** | LangChain Expression Language for chain composition |
+| **SSE Streaming** | FastAPI `StreamingResponse` + React `fetch` + `ReadableStream` |
+| **Async persistence** | `aiosqlite` for non-blocking report storage |
 | **Tool use** | `TavilySearchResults` as a LangChain community tool |
-| **Streaming** | `graph.stream()` with `stream_mode="updates"` for live UI updates |
 
-## Tech Stack
+---
 
-- **LangGraph** — stateful multi-agent orchestration (graph, state, Send, streaming)
-- **LangChain** — chain composition, tool wrappers, model integrations
-- **LangChain-Anthropic** — `ChatAnthropic` with structured output
-- **Tavily** — real-time web search optimized for AI agents
-- **Streamlit** — interactive web UI with live agent status
-- **Python 3.12**
+## Features
 
-## Quick Start
+- **Parallel research agents** — LangGraph fans out sub-questions to N researchers simultaneously
+- **Real-time streaming** — SSE streams agent status updates to the UI as they happen
+- **Configurable depth** — choose 2 (fast ~15s), 3 (balanced ~25s), or 5 (thorough ~45s) researchers
+- **Research history** — every report auto-saved to SQLite; browse and reload past sessions
+- **Export** — download any report as Markdown or PDF
+- **Source citation panel** — all sources displayed with clickable links, deduplicated
+
+---
+
+## Local Setup
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 20+
+- Anthropic API key — [console.anthropic.com](https://console.anthropic.com)
+- Tavily API key — [app.tavily.com](https://app.tavily.com) (free tier: 1,000 searches/month)
+
+### 1. Clone and configure
 
 ```bash
-# 1. Clone and set up environment
-git clone https://github.com/evanderpool/langchain-research-agent
+git clone https://github.com/evanderpool/langchain-research-agent.git
 cd langchain-research-agent
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Configure API keys
 cp .env.example .env
-# Edit .env with your ANTHROPIC_API_KEY and TAVILY_API_KEY
-
-# 4a. Run the Streamlit UI
-streamlit run app.py
-
-# 4b. Or use the CLI
-python main.py "What are the key trends in AI agent frameworks in 2025?"
+# Edit .env — add ANTHROPIC_API_KEY and TAVILY_API_KEY
 ```
 
-## API Keys
+### 2. Install backend
 
-| Key | Where to get it | Cost |
+```bash
+pip install -r backend/requirements.txt
+```
+
+### 3. Install frontend
+
+```bash
+cd frontend && npm install
+```
+
+### 4. Run (two terminals)
+
+**Terminal 1 — Backend:**
+```bash
+uvicorn backend.main:app --reload
+# API at http://localhost:8000
+```
+
+**Terminal 2 — Frontend:**
+```bash
+cd frontend && npm run dev
+# UI at http://localhost:5173
+```
+
+Open [http://localhost:5173](http://localhost:5173) and ask anything.
+
+---
+
+## Environment Variables
+
+| Variable | Description |
+|---|---|
+| `ANTHROPIC_API_KEY` | Claude API key |
+| `TAVILY_API_KEY` | Tavily search API key |
+
+---
+
+## API Reference
+
+| Endpoint | Method | Description |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | Pay-per-use |
-| `TAVILY_API_KEY` | [tavily.com](https://tavily.com) | Free tier: 1,000 searches/month |
+| `/api/research` | POST | Start a research session (SSE stream) |
+| `/api/history` | GET | List past reports |
+| `/api/history/{id}` | GET | Get a specific report |
+| `/api/history/{id}` | DELETE | Delete a report |
+| `/api/export/{id}?format=markdown` | GET | Download as Markdown |
+| `/api/export/{id}?format=pdf` | GET | Download as PDF |
+
+---
+
+## Deploy to HuggingFace Spaces
+
+1. Create a new Space → **Docker** SDK
+2. Push this repo to the Space
+3. Add `ANTHROPIC_API_KEY` and `TAVILY_API_KEY` as **Space Secrets**
+4. The `Dockerfile` handles the full multi-stage build automatically
+
+---
 
 ## Project Structure
 
 ```
 langchain-research-agent/
-├── src/
-│   ├── state.py       # TypedDict graph state with operator.add reducers
-│   ├── tools.py       # Tavily web search tool wrapper
-│   ├── agents.py      # Planner, researcher, synthesizer node functions
-│   └── graph.py       # LangGraph StateGraph — nodes, edges, Send routing
-├── app.py             # Streamlit UI with live agent status streaming
-├── main.py            # CLI entry point
-├── requirements.txt
+├── backend/
+│   ├── main.py          # FastAPI app, CORS, static file serving
+│   ├── api/
+│   │   ├── research.py  # POST /research — SSE streaming endpoint
+│   │   ├── history.py   # GET/DELETE /history — report CRUD
+│   │   └── export.py    # GET /export — Markdown + PDF download
+│   ├── core/
+│   │   ├── state.py     # TypedDict graph state with reducers
+│   │   ├── tools.py     # Tavily search tool wrapper
+│   │   ├── agents.py    # Planner, researcher, synthesizer nodes
+│   │   └── graph.py     # LangGraph StateGraph + Send routing
+│   ├── models/
+│   │   └── schemas.py   # Pydantic request/response models
+│   └── storage/
+│       └── db.py        # Async SQLite via aiosqlite
+├── frontend/
+│   └── src/
+│       ├── App.jsx               # Main layout + state
+│       ├── components/
+│       │   ├── ResearchInput.jsx # Query input + depth selector
+│       │   ├── AgentPipeline.jsx # Live step visualization
+│       │   ├── ReportViewer.jsx  # Markdown report renderer
+│       │   ├── SourcePanel.jsx   # Clickable source citations
+│       │   ├── HistorySidebar.jsx# Past sessions browser
+│       │   └── ExportButtons.jsx # PDF + Markdown download
+│       └── hooks/
+│           └── useSSE.js         # Fetch + ReadableStream SSE hook
+├── Dockerfile            # HuggingFace Spaces multi-stage build
 └── .env.example
 ```
 
-## Related Projects
+---
 
-- [Artificial Management AI OS](https://github.com/evanderpool/artificial-management) — 10-agent enterprise AI operating system
-- [RAG Knowledge Base Builder](https://huggingface.co/spaces/evanderpool/rag-knowledge-base) — Document ingestion + semantic search + LLM-grounded answers
+## Related
+
+- [Artificial Management AI OS](https://github.com/evanderpool/artificial-management) — 10-agent enterprise AI operating system this project is part of
 
 ---
 
-Built by [Erick Vanderpool](https://github.com/evanderpool) — [Artificial Management](https://github.com/evanderpool/artificial-management)
+*Built by [Erick Vanderpool](https://github.com/evanderpool) · Artificial Management*
