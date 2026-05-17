@@ -5,7 +5,9 @@ from pathlib import Path
 
 import aiosqlite
 
-DB_PATH = Path(__file__).parent.parent.parent / "research.db"
+import os
+# HuggingFace Spaces sets HF_SPACE_ID; use /tmp there, local project root otherwise
+DB_PATH = Path("/tmp/research.db") if os.getenv("HF_SPACE_ID") else Path(__file__).parent.parent.parent / "research.db"
 
 
 async def init_db():

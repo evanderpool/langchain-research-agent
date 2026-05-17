@@ -10,10 +10,12 @@ RUN npm run build
 FROM python:3.11-slim
 WORKDIR /app
 
-# System deps for weasyprint (PDF export)
+# System deps for weasyprint (PDF export) + general stability
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpango-1.0-0 libpangoft2-1.0-0 libgdk-pixbuf-2.0-0 \
-    libffi-dev libcairo2 && rm -rf /var/lib/apt/lists/*
+    libpango-1.0-0 libpangoft2-1.0-0 libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 libffi-dev libcairo2 libharfbuzz0b \
+    libfontconfig1 fonts-liberation curl \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -21,7 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
-# HuggingFace Spaces runs on port 7860
+# HuggingFace Spaces requires port 7860
 ENV PORT=7860
 EXPOSE 7860
 
