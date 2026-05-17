@@ -1,3 +1,12 @@
+---
+title: Research Intelligence Agent
+emoji: 🔬
+colorFrom: blue
+colorTo: teal
+sdk: docker
+pinned: false
+---
+
 # Research Intelligence Agent
 
 A production-grade multi-agent AI research assistant built with **LangGraph**, **FastAPI**, and **React**. Ask a question and watch parallel AI agents plan, research, and synthesize a structured report in real time.
